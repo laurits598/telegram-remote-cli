@@ -8,9 +8,10 @@ No third-party dependencies - uses only the standard library.
 """
 
 import json
+import os
 import urllib.request
 
-OLLAMA_URL = "http://localhost:11434/api/chat"
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/chat")
 MODEL = "llama3.1:latest"
 
 
