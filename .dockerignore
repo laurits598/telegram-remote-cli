@@ -1,0 +1,6 @@
+.git
+.gitignore
+README.md
+telegram_token.txt
+__pycache__
+*.pyc

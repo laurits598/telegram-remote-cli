@@ -37,3 +37,14 @@ The running terminal will print something like:
 ```
 
 Stop the program with `Ctrl+C`. The program uses only Python's standard library.
+
+
+## Docker
+### Run basic
+docker build -t telegram-remote-cli .
+### Or token mounted securely
+docker run -d \
+    --name telegram-bot \
+    --restart unless-stopped \
+    -v "$PWD/telegram_token.txt:/app/telegram_token.txt:ro" \
+    telegram-remote-cli
