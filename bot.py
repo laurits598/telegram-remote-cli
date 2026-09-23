@@ -51,6 +51,16 @@ def send_text(token: str, chat_id: int, text: str) -> None:
         )
 
 
+def standard_sequence(message, parts):
+    content = parts[1] if len(parts) == 2 else "(no text)"
+    sender = message.get("from", {})
+    name = sender.get("username") or " ".join(
+        value for value in (sender.get("first_name"), sender.get("last_name")) if value
+    ) or "unknown user"
+    timestamp = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S")
+    #print(f"[{timestamp}] {name}: {content}", flush=True)
+    return name, timestamp
+'''
 def print_msg(message: dict, token: str) -> None:
     """Handle /msg and /cmd messages."""
     text = message.get("text", "")
@@ -59,21 +69,12 @@ def print_msg(message: dict, token: str) -> None:
 
     if command == "/msg":
         content = parts[1] if len(parts) == 2 else "(no text)"
-        sender = message.get("from", {})
-        name = sender.get("username") or " ".join(
-            value for value in (sender.get("first_name"), sender.get("last_name")) if value
-        ) or "unknown user"
-        timestamp = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S")
-
+        name, timestamp = standard_sequence(message, parts)
         print(f"[{timestamp}] {name}: {content}", flush=True)
 
     elif command == "/cmd":
         content = parts[1] if len(parts) == 2 else "(no text)"
-        sender = message.get("from", {})
-        name = sender.get("username") or " ".join(
-            value for value in (sender.get("first_name"), sender.get("last_name")) if value
-        ) or "unknown user"
-        timestamp = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S")
+        name, timestamp = standard_sequence(message, parts)
 
         # Save output of the executed command to a variable and print it.
         result = subprocess.run(content, shell=True, capture_output=True, text=True)
@@ -93,17 +94,72 @@ def print_msg(message: dict, token: str) -> None:
 
     elif command == "/agent":
             content = parts[1] if len(parts) == 2 else "(no text)"
-            sender = message.get("from", {})
-            name = sender.get("username") or " ".join(
-                value for value in (sender.get("first_name"), sender.get("last_name")) if value
-            ) or "unknown user"
-            timestamp = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S")
+            name, timestamp = standard_sequence(message, parts)
             agent_response = prompt_agent(content)
             print(f"[{timestamp}] {name}: Prompted agent with: {content}", flush=True)
             print(f"Agent response:\n{agent_response}", flush=True)
             send_text(token, message["chat"]["id"], agent_response)
     else:
         return  # Ignore other messages
+'''
+
+def handle_msg(message: dict, token: str) -> None:
+    """Handle /msg and /cmd messages."""
+    text = message.get("text", "")
+    parts = text.split(maxsplit=1)       
+    content = parts[1] if len(parts) == 2 else "(no text)"
+    name, timestamp = standard_sequence(message, parts)
+    print(f"[{timestamp}] {name}: {content}", flush=True)
+
+def handle_cmd(message: dict, token: str) -> None:
+    """Handle /cmd messages."""
+    text = message.get("text", "")
+    parts = text.split(maxsplit=1)       
+    content = parts[1] if len(parts) == 2 else "(no text)"
+    name, timestamp = standard_sequence(message, parts)
+    # Save output of the executed command to a variable and print it.
+    result = subprocess.run(content, shell=True, capture_output=True, text=True)
+    command_output = result.stdout
+    if result.stderr:
+       command_output += f"\n[stderr]\n{result.stderr}"
+    if not command_output:
+        command_output = "(no output)"
+    if result.returncode != 0:
+        command_output += f"\n[exit code: {result.returncode}]"
+
+        print(f"[{timestamp}] {name}: Executed command: {content}", flush=True)
+        print(f"Command output:\n{command_output}", flush=True)
+        # Send the saved output back to the Telegram chat that issued /cmd.
+        send_text(token, message["chat"]["id"], command_output)
+
+def handle_agent(message: dict, token: str) -> None:
+    """Handle /agent messages."""
+    text = message.get("text", "")
+    parts = text.split(maxsplit=1)       
+    content = parts[1] if len(parts) == 2 else "(no text)"
+    name, timestamp = standard_sequence(message, parts)
+    agent_response = prompt_agent(content)
+    print(f"[{timestamp}] {name}: Prompted agent with: {content}", flush=True)
+    print(f"Agent response:\n{agent_response}", flush=True)
+    send_text(token, message["chat"]["id"], agent_response)
+
+
+
+def print_msg_switch_case(message: dict, token: str) -> None:
+    text = message.get("text", "")
+    command = text.split(maxsplit=1)[0].split("@", 1)[0].lower()
+
+    cases = {
+        "/msg": lambda: handle_msg(message, token),
+        "/cmd": lambda: handle_cmd(message, token),
+        "/agent": lambda: handle_agent(message, token),
+    }
+
+    handler = cases.get(command)
+
+    if handler:
+        handler()
+
 
 
 
@@ -140,7 +196,7 @@ def main() -> None:
                 offset = update["update_id"] + 1
                 message = update.get("message")
                 if message:
-                    print_msg(message, token)
+                    print_msg_switch_case(message, token)
         except KeyboardInterrupt:
             print("\nStopped.")
             return
