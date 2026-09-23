@@ -115,6 +115,8 @@ docker run -d \
   telegram-remote-cli
 ```
 
+> **Note:** When the bot runs inside Docker, `localhost` in `OLLAMA_URL` refers to the container's loopback interface, not the Docker host. Use the host gateway address shown above instead. If Ollama only listens on the host's loopback interface, it may also need to listen on an interface reachable from the container.
+
 ## Security
 
 Treat this bot as remote code execution on the machine where it runs. Anyone who can use the bot may be able to run commands as the bot process user.
